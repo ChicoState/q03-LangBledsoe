@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "Guesser.h"
+#include <climits>
 
 class GuesserTest : public ::testing::Test
 {
@@ -441,4 +442,130 @@ TEST(GuesserTest, SecretIsLockedWhenNoRemainingGuesses)
     guesser.match("secret2");
     guesser.match("secret3");
     ASSERT_FALSE(guesser.match("secret"));
+}
+
+// Test that secret is truncated with trailing spaces
+TEST(GuesserTest, HandlesTrailingSpacesInSecret)
+{
+    std::string secret = "secret" + std::string(100, ' ');
+    Guesser guesser(secret);
+    ASSERT_TRUE(guesser.match(secret.substr(0, 32)));
+}
+
+// Test that secret is truncated with leading spaces
+TEST(GuesserTest, HandlesLeadingSpacesInSecret)
+{
+    std::string secret = std::string(100, ' ') + "secret";
+    Guesser guesser(secret);
+    ASSERT_TRUE(guesser.match(secret.substr(0, 32)));
+}
+
+// Test that 32 character truncated string doesn't lock
+TEST(GuesserTest, HandlesTruncatedSecretDoesNotLock)
+{
+    std::string secret = "secret" + std::string(100, '!');
+    std::string guess = secret.substr(0, 32) + "!";
+    Guesser guesser(secret);
+    guesser.match(guess);
+    ASSERT_TRUE(guesser.match(secret.substr(0, 32)));
+}
+
+// Test to make sure that secret can't change with another Guesser object
+TEST(GuesserTest, SecretCannotChangeWithAnotherGuesser)
+{
+    Guesser guesser("secret");
+    Guesser guesser2("testing");
+    ASSERT_FALSE(guesser.match("testing"));
+}
+
+// Test a secret with spaces in the middle
+TEST(GuesserTest, HandlesSecretWithSpacesInMiddle)
+{
+    Guesser guesser("secret with   spaces");
+    ASSERT_TRUE(guesser.match("secret with   spaces"));
+}
+
+// Test that locking works when lengths are the same
+TEST(GuesserTest, HandlesLockingWhenLengthsAreTheSame)
+{
+    Guesser guesser("abc");
+    guesser.match("ABC");
+    ASSERT_FALSE(guesser.match("abc"));
+}
+
+// Test that lots of guesses doesn't break the code
+TEST(GuesserTest, HandlesManyGuesses)
+{
+    Guesser guesser("secret");
+    for(int i = 0; i < 100000; i++){
+        guesser.match("secret");
+    }
+    ASSERT_TRUE(guesser.match("secret"));
+}
+
+// Test that lots of guesses and one wrong guess (brute force) fails
+TEST(GuesserTest, HandlesManyGuessesWithBruteForce)
+{
+    Guesser guesser("secret");
+    for(int i = 0; i < 100000; i++){
+        if (i == 9991) {
+            guesser.match("not_even_close_at_all");
+        }
+        guesser.match("secret");
+    }
+    ASSERT_FALSE(guesser.match("secret"));
+}
+
+// Test that lots of guesses and three wrong guesses fails
+TEST(GuesserTest, HandlesManyGuessesWithThreeWrongGuesses)
+{
+    Guesser guesser("secret");
+    for(int i = 0; i < 100000; i++){
+        if (i == 9991) {
+            guesser.match("secret1");
+        }
+        else if (i == 9992) {
+            guesser.match("secret2");
+        }
+        else if (i == 9993) {
+            guesser.match("secret3");
+        }
+        guesser.match("secret");
+    }
+    ASSERT_FALSE(guesser.match("secret"));
+}
+
+// Test that newline characters are handled correctly
+TEST(GuesserTest, HandlesNewlineCharacters)
+{
+    Guesser guesser("secret\n");
+    ASSERT_TRUE(guesser.match("secret\n"));
+}
+
+// Test just numeric characters
+TEST(GuesserTest, HandlesNumericCharacters)
+{
+    Guesser guesser("1234567890");
+    ASSERT_TRUE(guesser.match("1234567890"));
+}
+
+// Test that string with 31 characters doesn't get truncated
+TEST(GuesserTest, Handles31CharacterString)
+{
+    Guesser guesser("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    ASSERT_TRUE(guesser.match("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+}
+
+// Test that a string with 32 characters doesn't get truncated
+TEST(GuesserTest, Handles32CharacterString)
+{
+    Guesser guesser("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    ASSERT_TRUE(guesser.match("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+}
+
+// Test that a string with 33 characters gets truncated
+TEST(GuesserTest, Handles33CharacterString)
+{
+    Guesser guesser("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    ASSERT_FALSE(guesser.match("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
 }
